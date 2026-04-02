@@ -15,3 +15,10 @@
 - 파일 이름은 간결하고 의미를 명확하게 전달해야 합니다.
 - 불필요한 특수문자는 사용하지 않습니다.
 - 동일한 의미의 단어는 통일하여 사용합니다 (예: guide, doc 등)
+- 
+# reposcore-cs
+A CLI for scoring student participation in an open-source class repo, implemented in C# using GraphQL
+
+## .md(Markdown) 문서 작성에 대한 표준 가이드
+
+- [기본 서식 구문](https://docs.github.com/ko/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax)
