@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Linq;
 
 public class IssueService
 {
@@ -17,7 +18,7 @@ public class IssueService
             new ProductInfoHeaderValue("RepoScoreApp", "1.0"));
     }
 
-    public async Task ShowRecentClaims(string repo, string? token)
+    public async Task ShowRecentClaims(string repo, string? token, string mode)
     {
         if (string.IsNullOrEmpty(token))
         {
@@ -77,7 +78,6 @@ public class IssueService
         );
 
         var response = await _httpClient.PostAsync("https://api.github.com/graphql", content);
-
         var json = await response.Content.ReadAsStringAsync();
 
         using var doc = JsonDocument.Parse(json);
@@ -91,37 +91,99 @@ public class IssueService
         Console.WriteLine("📌 최근 이슈 선점 현황\n");
 
         var keywords = new[] { "제가 하겠습니다", "진행하겠습니다", "할게요", "I'll take this" };
-
         var now = DateTime.UtcNow;
 
-        foreach (var issue in issues.EnumerateArray())
+        if (mode == "user")
         {
-            var url = issue.GetProperty("url").GetString();
+            var result = new Dictionary<string, List<string>>();
 
-            var comments = issue.GetProperty("comments").GetProperty("nodes");
-
-            foreach (var comment in comments.EnumerateArray())
+            foreach (var issue in issues.EnumerateArray())
             {
-                var body = comment.GetProperty("body").GetString();
-                var createdAt = comment.GetProperty("createdAt").GetDateTime();
-                var author = comment.GetProperty("author").GetProperty("login").GetString();
+                var url = issue.GetProperty("url").GetString();
+                var comments = issue.GetProperty("comments").GetProperty("nodes");
 
-                if ((now - createdAt).TotalHours <= 48)
+                foreach (var comment in comments.EnumerateArray())
                 {
-                    foreach (var keyword in keywords)
+                    var body = comment.GetProperty("body").GetString();
+                    var createdAt = comment.GetProperty("createdAt").GetDateTime();
+                    var author = comment.GetProperty("author").GetProperty("login").GetString();
+
+                    if ((now - createdAt).TotalHours <= 48)
                     {
-                        if (body != null && body.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+                        foreach (var keyword in keywords)
                         {
-                            Console.WriteLine($"👤 {author}");
-                            Console.WriteLine($" - {url}");
-                            Console.WriteLine();
-                            break;
+                            if (body != null && body.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+                            {
+                                if (!result.ContainsKey(author))
+                                    result[author] = new List<string>();
+
+                                result[author].Add(url);
+                                break;
+                            }
                         }
                     }
                 }
             }
+
+            foreach (var user in result)
+            {
+                Console.WriteLine($"👤 {user.Key}");
+
+                foreach (var issue in user.Value.Distinct())
+                {
+                    Console.WriteLine($" - {issue}");
+                }
+
+                Console.WriteLine();
+            }
+        }
+        else if (mode == "issue")
+        {
+            var issueMap = new Dictionary<string, List<string>>();
+
+            foreach (var issue in issues.EnumerateArray())
+            {
+                var url = issue.GetProperty("url").GetString();
+                var comments = issue.GetProperty("comments").GetProperty("nodes");
+
+                foreach (var comment in comments.EnumerateArray())
+                {
+                    var body = comment.GetProperty("body").GetString();
+                    var createdAt = comment.GetProperty("createdAt").GetDateTime();
+                    var author = comment.GetProperty("author").GetProperty("login").GetString();
+
+                    if ((now - createdAt).TotalHours <= 48)
+                    {
+                        foreach (var keyword in keywords)
+                        {
+                            if (body != null && body.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+                            {
+                                if (!issueMap.ContainsKey(url))
+                                    issueMap[url] = new List<string>();
+
+                                issueMap[url].Add(author);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            foreach (var issue in issueMap)
+            {
+                Console.WriteLine($"📌 {issue.Key}");
+
+                foreach (var user in issue.Value.Distinct())
+                {
+                    Console.WriteLine($" - {user}");
+                }
+
+                Console.WriteLine();
+            }
+        }
+        else
+        {
+            Console.WriteLine("지원하지 않는 옵션입니다. user 또는 issue를 사용하세요.");
         }
     }
 }
-
-
