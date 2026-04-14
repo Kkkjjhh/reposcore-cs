@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Linq;
 
 public class IssueService
 {
@@ -77,7 +78,6 @@ public class IssueService
         );
 
         var response = await _httpClient.PostAsync("https://api.github.com/graphql", content);
-
         var json = await response.Content.ReadAsStringAsync();
 
         using var doc = JsonDocument.Parse(json);
@@ -91,13 +91,13 @@ public class IssueService
         Console.WriteLine("📌 최근 이슈 선점 현황\n");
 
         var keywords = new[] { "제가 하겠습니다", "진행하겠습니다", "할게요", "I'll take this" };
-
         var now = DateTime.UtcNow;
+
+        var result = new Dictionary<string, List<string>>();
 
         foreach (var issue in issues.EnumerateArray())
         {
             var url = issue.GetProperty("url").GetString();
-
             var comments = issue.GetProperty("comments").GetProperty("nodes");
 
             foreach (var comment in comments.EnumerateArray())
@@ -112,16 +112,27 @@ public class IssueService
                     {
                         if (body != null && body.Contains(keyword, StringComparison.OrdinalIgnoreCase))
                         {
-                            Console.WriteLine($"👤 {author}");
-                            Console.WriteLine($" - {url}");
-                            Console.WriteLine();
+                            if (!result.ContainsKey(author))
+                                result[author] = new List<string>();
+
+                            result[author].Add(url);
                             break;
                         }
                     }
                 }
             }
         }
+
+        foreach (var user in result)
+        {
+            Console.WriteLine($"👤 {user.Key}");
+
+            foreach (var issue in user.Value.Distinct())
+            {
+                Console.WriteLine($" - {issue}");
+            }
+
+            Console.WriteLine();
+        }
     }
 }
-
-
