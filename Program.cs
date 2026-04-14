@@ -6,13 +6,18 @@ var app = CoconaApp.Create();
 app.AddCommand(async (
     [Argument] string repo,
     [Option('t', Description = "GitHub Personal Access Token")] string? token = null,
-    [Option("show-claims", Description = "최근 이슈 선점 현황 조회")] bool showClaims = false
+    [Option("show-claims", Description = "이슈 선점 출력 방식 (user | issue)")] string? showClaims = null
 ) =>
 {
-    if (showClaims)
+    if (showClaims != null)
     {
         var service = new IssueService();
-        await service.ShowRecentClaims(repo, token);
+
+        var mode = showClaims.ToLower();
+        if (string.IsNullOrEmpty(mode))
+            mode = "user";
+
+        await service.ShowRecentClaims(repo, token, mode);
         return;
     }
 
@@ -29,7 +34,7 @@ app.AddCommand(async (
 
     Console.WriteLine();
     Console.WriteLine("아이디, 문서이슈, 버그/기능이슈, 오타PR, 문서PR, 버그/기능PR, 총점");
-    // 메서드 파라미터 순서: (기능/버그PR, 문서PR, 오타PR, 기능/버그이슈, 문서이슈)
+
     int user1Score = ScoreCalculator.CalculateFinalScore(1, 3, 1, 2, 1);
     Console.WriteLine($"user1, 1, 2, 1, 3, 1, {user1Score}");
 
